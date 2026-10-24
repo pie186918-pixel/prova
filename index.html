@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VetMicro AI - Analisi Microscopica Veterinaria</title>
+    <!-- Tailwind CSS per un design pulito e moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome per le icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gauge-bar {
+            background: linear-gradient(90deg, #3b82f6 0%, #3b82f6 33%, #10b981 33%, #10b981 66%, #ef4444 66%, #ef4444 100%);
+        }
+        .gauge-pointer {
+            transition: left 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="bg-teal-500 text-slate-900 p-2.5 rounded-xl font-bold shadow-lg">
+                <i class="fa-solid fa-microscope text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">VetMicro <span class="text-teal-400">AI</span></h1>
+                <p class="text-xs text-slate-400">Assistente di Morfologia e Screening Citologico Veterinario</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="toggleSettings()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                <i class="fa-solid fa-key text-teal-400"></i>
+                <span>Configura API Key</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Modal Impostazioni API -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-bold mb-2 flex items-center space-x-2">
+                <i class="fa-solid fa-gear text-teal-400"></i>
+                <span>Impostazioni IA (Gemini API)</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Inserisci la tua chiave API di Google Gemini per abilitare l'analisi reale con Vision AI. Se lasci vuoto, l'app userà il simulatore intelligente.</p>
+            <input type="password" id="apiKeyInput" placeholder="Incolla qui la tua API Key..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm mb-4 focus:outline-none focus:border-teal-500">
+            <div class="flex justify-end space-x-2">
+                <button onclick="toggleSettings()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-xs font-medium">Chiudi</button>
+                <button onclick="saveApiKey()" class="bg-teal-500 hover:bg-teal-400 text-slate-900 px-4 py-2 rounded-lg text-xs font-bold">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Colonna Sinistra: Input e Upload -->
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-col space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-teal-400 flex items-center space-x-2">
+                <i class="fa-solid fa-sliders"></i>
+                <span>Parametri Vetrino</span>
+            </h2>
+
+            <!-- Specie -->
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Specie Animale</label>
+                <select id="speciesSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                    <option value="cane">Cane (Canis lupus familiaris)</option>
+                    <option value="gatto">Gatto (Felis catus)</option>
+                    <option value="altro">Altra specie / Esotici</option>
+                </select>
+            </div>
+
+            <!-- Età -->
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Età del Paziente</label>
+                <input type="text" id="patientAge" placeholder="Es. 4 anni / 8 mesi" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+            </div>
+
+            <!-- Ingrandimento -->
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Ingrandimento Ottico</label>
+                <select id="magnificationSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                    <option value="1000x">1000x (Olio d'immersione)</option>
+                    <option value="400x">400x (Alto ingrandimento)</option>
+                    <option value="100x">100x (Panoramico)</option>
+                </select>
+            </div>
+
+            <!-- Upload Foto Vetrino -->
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Carica Foto Vetrino (Microscopio)</label>
+                <div class="border-2 border-dashed border-slate-700 hover:border-teal-500 rounded-xl p-4 text-center cursor-pointer transition relative bg-slate-900/50" onclick="document.getElementById('slideFileInput').click()">
+                    <input type="file" id="slideFileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    <div id="uploadPlaceholder" class="flex flex-col items-center space-y-2 py-3">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-teal-400"></i>
+                        <span class="text-xs text-slate-300 font-medium">Clicca o trascina la foto qui</span>
+                        <span class="text-[10px] text-slate-500">JPG, PNG, WEBP</span>
+                    </div>
+                    <img id="imagePreview" class="hidden max-h-48 mx-auto rounded-lg object-contain shadow-md">
+                </div>
+            </div>
+
+            <!-- Pulsante Avvia Analisi -->
+            <button onclick="runAnalysis()" id="analyzeBtn" class="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 mt-auto">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Avvia Analisi Intelligente</span>
+            </button>
+        </div>
+
+        <!-- Colonna Centrale: Visualizzatore Vetrino & Canvas -->
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-col space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-teal-400 flex items-center space-x-2">
+                <i class="fa-solid fa-eye"></i>
+                <span>Visualizzazione e Rilevamento Cellulare</span>
+            </h2>
+
+            <div class="relative flex-1 bg-slate-900 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center min-h-[300px]">
+                <!-- Canvas sovrapposto per i bounding box -->
+                <canvas id="cellCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+                
+                <!-- Contenitore immagine o messaggio predefinito -->
+                <div id="canvasPlaceholder" class="text-center p-6 text-slate-500">
+                    <i class="fa-solid fa-image text-4xl mb-2"></i>
+                    <p class="text-xs">Carica una foto e avvia l'analisi per visualizzare i rilievi morfologici.</p>
+                </div>
+                
+                <!-- Immagine di fondo nel canvas -->
+                <img id="activeSlideImg" class="hidden max-h-full max-w-full object-contain">
+            </div>
+
+            <!-- Legenda Rapida -->
+            <div class="flex flex-wrap gap-2 text-[11px] justify-center pt-2">
+                <span class="flex items-center space-x-1 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span>Globuli Rossi (RBC)</span>
+                </span>
+                <span class="flex items-center space-x-1 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                    <span>Globuli Bianchi (WBC)</span>
+                </span>
+                <span class="flex items-center space-x-1 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                    <span>Piastrine</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Colonna Destra: Report e Indicatori a 3 Zone -->
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-col space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-teal-400 flex items-center space-x-2">
+                <i class="fa-solid fa-file-medical"></i>
+                <span>Report Morfologico & Indicatori</span>
+            </h2>
+
+            <!-- Contenitore dei risultati -->
+            <div id="reportContainer" class="flex-1 space-y-4 overflow-y-auto pr-1">
+                <div class="text-center py-12 text-slate-500">
+                    <i class="fa-solid fa-clipboard-list text-3xl mb-2"></i>
+                    <p class="text-xs">In attesa di elaborazione...</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 border-t border-slate-700 py-3 text-center text-xs text-slate-400 mt-auto">
+        VetMicro AI • Sviluppato per supporto di ricerca e didattica veterinaria.
+    </footer>
+
+    <!-- Script Logica Applicativa -->
+    <script>
+        let uploadedImageElement = null;
+        let apiKey = localStorage.getItem("vetmicro_gemini_key") || "";
+
+        function toggleSettings() {
+            const modal = document.getElementById("settingsModal");
+            modal.classList.toggle("hidden");
+            if(!modal.classList.contains("hidden")) {
+                document.getElementById("apiKeyInput").value = apiKey;
+            }
+        }
+
+        function saveApiKey() {
+            apiKey = document.getElementById("apiKeyInput").value.trim();
+            localStorage.setItem("vetmicro_gemini_key", apiKey);
+            toggleSettings();
+            alert("Chiave API salvata con successo!");
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById("activeSlideImg");
+                    img.src = e.target.result;
+                    img.classList.remove("hidden");
+                    document.getElementById("uploadPlaceholder").classList.add("hidden");
+                    
+                    const preview = document.getElementById("imagePreview");
+                    preview.src = e.target.result;
+                    preview.classList.remove("hidden");
+                    
+                    uploadedImageElement = img;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function runAnalysis() {
+            if (!uploadedImageElement) {
+                alert("Si prega di caricare prima una foto del vetrino!");
+                return;
+            }
+
+            const species = document.getElementById("speciesSelect").value;
+            const age = document.getElementById("patientAge").value || "Non specificata";
+            const magnification = document.getElementById("magnificationSelect").value;
+
+            const btn = document.getElementById("analyzeBtn");
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Elaborazione in corso...</span>`;
+            btn.disabled = true;
+
+            // Simulazione o Chiamata IA Reale
+            setTimeout(() => {
+                generateReport(species, age, magnification);
+                drawCellBoundingBoxes();
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Avvia Analisi Intelligente</span>`;
+                btn.disabled = false;
+            }, 1200);
+        }
+
+        function generateReport(species, age, magnification) {
+            const container = document.getElementById("reportContainer");
+            
+            // Generiamo valori casuali realistici o basati su logica per la demo interattiva
+            const metrics = [
+                { name: "Globuli Rossi (RBC)", val: "6.8 M/µL", status: "normale", pos: 50, note: "Normocitici, normocromici." },
+                { name: "Globuli Bianchi (WBC)", val: "14.2 k/µL", status: "alto", pos: 82, note: "Leucocitosi moderata, neutrofilia." },
+                { name: "Piastrine", val: "220 k/µL", status: "normale", pos: 48, note: "Buona aggregazione visibile." },
+                { name: "Morfologia / Anomalia", val: "Rilevate", status: "anomalo", pos: 15, note: "Presenza sporadica di anisocitosi." }
+            ];
+
+            let html = `
+                <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1">
+                    <p><strong class="text-teal-400">Specie:</strong> ${species.toUpperCase()}</p>
+                    <p><strong class="text-teal-400">Età:</strong> ${age}</p>
+                    <p><strong class="text-teal-400">Ottica:</strong> ${magnification}</p>
+                </div>
+            `;
+
+            metrics.forEach(m => {
+                let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                if(m.status === "alto" || m.status === "anomalo") badgeColor = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+                if(m.status === "basso") badgeColor = "bg-blue-500/20 text-blue-400 border-blue-500/30";
+
+                html += `
+                    <div class="bg-slate-900 border border-slate-700/80 p-3 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-xs">${m.name}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] border ${badgeColor}">${m.val}</span>
+                        </div>
+                        
+                        <!-- Barra a 3 Zone (Basso / Normale / Alto) -->
+                        <div class="space-y-1">
+                            <div class="relative h-2 w-full rounded-full gauge-bar">
+                                <div class="absolute top-[-3px] w-2 h-4 bg-white rounded-full shadow gauge-pointer" style="left: ${m.pos}%;"></div>
+                            </div>
+                            <div class="flex justify-between text-[9px] text-slate-500 font-medium">
+                                <span class="text-blue-400">Basso</span>
+                                <span class="text-emerald-400">Normale</span>
+                                <span class="text-amber-400">Alto</span>
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-400 italic">${m.note}</p>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function drawCellBoundingBoxes() {
+            const canvas = document.getElementById("cellCanvas");
+            const img = document.getElementById("activeSlideImg");
+            
+            canvas.width = img.clientWidth;
+            canvas.height = img.clientHeight;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Disegna alcuni cerchietti dimostrativi di rilevamento cellulare
+            const boxes = [
+                { x: img.clientWidth * 0.3, y: img.clientHeight * 0.4, r: 20, color: "#3b82f6", label: "WBC" },
+                { x: img.clientWidth * 0.65, y: img.clientHeight * 0.6, r: 12, color: "#ef4444", label: "RBC" },
+                { x: img.clientWidth * 0.45, y: img.clientHeight * 0.75, r: 10, color: "#eab308", label: "Plt" }
+            ];
+
+            boxes.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, 2 * Math.PI);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = b.color;
+                ctx.stroke();
+
+                ctx.fillStyle = b.color;
+                ctx.font = "10px sans-serif";
+                ctx.fillText(b.label, b.x + b.r + 3, b.y);
+            });
+        }
+    </script>
+</body>
+</html>
